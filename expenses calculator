@@ -1,0 +1,150 @@
+import java.util.*;
+
+public class ExpenseSharingApp {
+    private Map<String, Double> expenses;
+
+    public ExpenseSharingApp() {
+        expenses = new HashMap<>();
+    }
+
+    // Add a user to the system
+    public void addUser(String userName) {
+        if (!expenses.containsKey(userName)) {
+            expenses.put(userName, 0.0);
+        } else {
+            System.out.println("User " + userName + " already exists.");
+        }
+    }
+
+    // Add an expense for a user
+    public void addExpense(String userName, double amount) {
+        if (expenses.containsKey(userName)) {
+            expenses.put(userName, expenses.get(userName) + amount);
+        } else {
+            System.out.println("User " + userName + " does not exist. Please add them first.");
+        }
+    }
+
+    // Calculate balances for each user
+    public Map<String, Double> calculateBalances() {
+        double totalExpense = 0;
+        int numUsers = expenses.size();
+
+        for (double amount : expenses.values()) {
+            totalExpense += amount;
+        }
+
+        double sharePerUser = totalExpense / numUsers;
+
+        Map<String, Double> balances = new HashMap<>();
+        for (String user : expenses.keySet()) {
+            balances.put(user, expenses.get(user) - sharePerUser);
+        }
+
+        return balances;
+    }
+
+    // Settle balances
+    public void settleBalances() {
+        Map<String, Double> balances = calculateBalances();
+
+        // Separate creditors and debtors
+        PriorityQueue<UserBalance> creditors = new PriorityQueue<>((a, b) -> Double.compare(b.amount, a.amount));
+        PriorityQueue<UserBalance> debtors = new PriorityQueue<>((a, b) -> Double.compare(b.amount, a.amount));
+
+        for (Map.Entry<String, Double> entry : balances.entrySet()) {
+            String user = entry.getKey();
+            double amount = entry.getValue();
+
+            if (amount > 0) {
+                creditors.add(new UserBalance(user, amount));
+            } else if (amount < 0) {
+                debtors.add(new UserBalance(user, -amount));
+            }
+        }
+
+        // Perform settlements
+        System.out.println("\nSettlements:");
+        while (!debtors.isEmpty() && !creditors.isEmpty()) {
+            UserBalance debtor = debtors.poll();
+            UserBalance creditor = creditors.poll();
+
+            double settlementAmount = Math.min(debtor.amount, creditor.amount);
+            System.out.println(debtor.user + " owes " + creditor.user + ": $" + String.format("%.2f", settlementAmount));
+
+            debtor.amount -= settlementAmount;
+            creditor.amount -= settlementAmount;
+
+            if (debtor.amount > 0) {
+                debtors.add(debtor);
+            }
+            if (creditor.amount > 0) {
+                creditors.add(creditor);
+            }
+        }
+    }
+
+    // Helper class to store user balances
+    private static class UserBalance {
+        String user;
+        double amount;
+
+        public UserBalance(String user, double amount) {
+            this.user = user;
+            this.amount = amount;
+        }
+    }
+
+    public static void main(String[] args) {
+        ExpenseSharingApp app = new ExpenseSharingApp();
+        Scanner scanner = new Scanner(System.in);
+
+        // Taking user input
+        System.out.println("Welcome to the Expense Sharing App!");
+        System.out.println("Enter the number of users:");
+        int numUsers = scanner.nextInt();
+        scanner.nextLine(); // Consume newline character
+
+        // Add users
+        for (int i = 0; i < numUsers; i++) {
+            System.out.println("Enter the name of user " + (i + 1) + ":");
+            String userName = scanner.nextLine();
+            app.addUser(userName);
+        }
+
+        // Add expenses
+        while (true) {
+            System.out.println("\nEnter an expense in the format 'UserName Amount' (or type 'done' to finish):");
+            String input = scanner.nextLine();
+
+            if (input.equalsIgnoreCase("done")) {
+                break;
+            }
+
+            String[] parts = input.split(" ");
+            if (parts.length == 2) {
+                String userName = parts[0];
+                double amount;
+                try {
+                    amount = Double.parseDouble(parts[1]);
+                    app.addExpense(userName, amount);
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid amount. Please try again.");
+                }
+            } else {
+                System.out.println("Invalid input. Please try again.");
+            }
+        }
+
+        // Display balances
+        Map<String, Double> balances = app.calculateBalances();
+        System.out.println("\nBalances:");
+        for (Map.Entry<String, Double> entry : balances.entrySet()) {
+            System.out.println(entry.getKey() + ": " + String.format("%.2f", entry.getValue()));
+        }
+
+        // Settle balances
+        app.settleBalances();
+        scanner.close();
+    }
+}
